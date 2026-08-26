@@ -9,9 +9,6 @@ The parser is the part meant to be actually good: when a policy file is
 malformed, the error names the line and column and shows the offending
 text, instead of a bare "syntax error".
 
-This is the language and its tooling. It does not yet check passwords
-against a parsed policy — that's the next piece (see Roadmap).
-
 ## The language
 
 ```
@@ -30,6 +27,25 @@ A file holds exactly one `policy` block: a quoted name and a set of
 `name: value` rules. A value is a number, a bare identifier, a quoted
 string, or a `[...]` list of any of those. Rule names may not repeat
 within a policy. `#` starts a line comment.
+
+## Rules
+
+The evaluator (`pwpolicy.evaluate`) understands this starter set. Using
+any other rule name is an error.
+
+| Rule | Value | Checks |
+| --- | --- | --- |
+| `min_length` | number | password is at least this many characters |
+| `max_length` | number | password is at most this many characters |
+| `require` | `[category, ...]` | password has at least one character from each category: `upper`, `lower`, `digit`, `symbol` (symbol = not alphanumeric, not whitespace) |
+| `min_unique` | number | password has at least this many distinct characters |
+| `forbid_repeat` | number | password has no run of this many or more of the same character in a row |
+| `forbid_sequence` | number | password has no run of this many or more characters that ascend or descend by one code point each step (`"abc"`, `"321"`) |
+| `deny_substrings` | `[string, ...]` | password contains none of these, case-insensitively |
+
+Rule values aren't validated at parse time yet, so a policy like
+`min_length: "twelve"` parses without complaint and only fails once you
+try to evaluate a password against it (see Roadmap).
 
 ## Usage
 
@@ -50,6 +66,12 @@ print([r.name for r in policy.rules])  # ["min_length", "require"]
 # Re-emit the policy in canonical form (consistent spacing and quoting,
 # regardless of how the input was written).
 print(pwpolicy.format_policy(policy))
+
+# Check a password against the parsed policy.
+result = pwpolicy.evaluate(policy, "hunter2")
+if not result.ok:
+    for violation in result.violations:
+        print(f"{violation.rule}: {violation.message}")
 ```
 
 ## Errors with real locations
@@ -82,19 +104,16 @@ of parsing the text back out.
 
 - `src/pwpolicy/parser.py` — lexer, AST, and recursive-descent parser
 - `src/pwpolicy/printer.py` — canonical pretty printer
+- `src/pwpolicy/evaluate.py` — starter rule set and password evaluation
 - `src/pwpolicy/errors.py` — `PolicyError`, with source-line rendering
 
 ## Status
 
-Early skeleton: the language, parser, and printer work; nothing yet
-evaluates a password against a parsed policy. See Roadmap.
+The language, parser, printer, and a starter rule set for evaluation
+all work. See Roadmap for what's left.
 
 ## Roadmap
 
-- Evaluate a password string against a parsed `Policy` and report which
-  rules failed
-- Ship a starter set of rule names (`min_length`, `require`, `forbid_repeat`,
-  `forbid_sequence`, `deny_substrings`, ...) with documented semantics
 - Validate rule values at parse time (e.g. `min_length` must be a
   positive number) instead of leaving that to the evaluator
 - Test suite covering the lexer, parser error messages, and printer
