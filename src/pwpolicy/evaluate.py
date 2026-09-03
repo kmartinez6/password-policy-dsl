@@ -1,13 +1,14 @@
 """Evaluate a password against a parsed Policy.
 
-Rule semantics live here, one function per rule name, so the parser stays
-generic about what a value means and the printer stays a pure AST-to-text
-mirror. RULES below is the full starter set this module understands; each
-check function's docstring is the spec for that rule name.
+Rule semantics live here, one function per rule name. RULES below is the
+full starter set this module understands; each check function's
+docstring is the spec for that rule name.
 
-Rule values aren't validated at parse time yet (a `min_length: "oops"`
-policy parses fine), so the checks below validate their own value shape
-and raise ValueError on a bad fit. That's a stopgap -- see README roadmap.
+parser.py's validate.py already rejects malformed values (a
+`min_length: "oops"` policy fails to parse), but the checks below still
+validate their own value's shape and raise ValueError on a bad fit, in
+case evaluate() is ever called with a Policy that wasn't built by
+parse() -- e.g. one assembled by hand from Rule/Value directly.
 """
 
 from dataclasses import dataclass

@@ -22,6 +22,7 @@ point at the exact spot in the source, not just "somewhere in this file".
 from dataclasses import dataclass
 
 from .errors import PolicyError
+from .validate import validate_rule_value
 
 
 @dataclass(frozen=True)
@@ -226,6 +227,7 @@ class Parser:
         name_tok = self._expect("IDENT", "a rule name")
         self._expect("COLON", "':' after the rule name")
         value = self._parse_value()
+        validate_rule_value(self.source, name_tok.value, value)
         return Rule(name_tok.value, value, name_tok.line, name_tok.column)
 
     def _parse_value(self):

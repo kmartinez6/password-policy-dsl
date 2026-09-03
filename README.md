@@ -43,9 +43,12 @@ any other rule name is an error.
 | `forbid_sequence` | number | password has no run of this many or more characters that ascend or descend by one code point each step (`"abc"`, `"321"`) |
 | `deny_substrings` | `[string, ...]` | password contains none of these, case-insensitively |
 
-Rule values aren't validated at parse time yet, so a policy like
-`min_length: "twelve"` parses without complaint and only fails once you
-try to evaluate a password against it (see Roadmap).
+Rule values are checked for shape as soon as they're parsed, so a
+policy like `min_length: "twelve"` (a string where a number is
+required) or `forbid_repeat: 0` (below the rule's minimum) fails to
+parse with a located error rather than surfacing later when a password
+is checked against it. An unrecognized rule name is not caught until
+evaluation, since the parser has no opinion on which rule names exist.
 
 ## Usage
 
@@ -94,15 +97,16 @@ pwpolicy.errors.PolicyError: line 2, column 14: expected ':' after the rule name
 ```
 
 The same happens for unterminated strings, unclosed braces, duplicate
-rule names (which point back at the first definition's line), and
-unexpected characters — every `PolicyError` carries `.line`, `.column`,
-and `.length` in addition to the rendered message, so callers can build
-their own reporting (an editor gutter marker, a CI annotation) instead
-of parsing the text back out.
+rule names (which point back at the first definition's line), badly
+shaped rule values, and unexpected characters — every `PolicyError`
+carries `.line`, `.column`, and `.length` in addition to the rendered
+message, so callers can build their own reporting (an editor gutter
+marker, a CI annotation) instead of parsing the text back out.
 
 ## Layout
 
 - `src/pwpolicy/parser.py` — lexer, AST, and recursive-descent parser
+- `src/pwpolicy/validate.py` — rule value shape checks, run during parsing
 - `src/pwpolicy/printer.py` — canonical pretty printer
 - `src/pwpolicy/evaluate.py` — starter rule set and password evaluation
 - `src/pwpolicy/errors.py` — `PolicyError`, with source-line rendering
@@ -114,8 +118,6 @@ all work. See Roadmap for what's left.
 
 ## Roadmap
 
-- Validate rule values at parse time (e.g. `min_length` must be a
-  positive number) instead of leaving that to the evaluator
 - Test suite covering the lexer, parser error messages, and printer
   round-tripping
 - Small CLI: `pwpolicy check policy.txt "candidate password"`
