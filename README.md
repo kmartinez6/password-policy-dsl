@@ -110,15 +110,23 @@ marker, a CI annotation) instead of parsing the text back out.
 - `src/pwpolicy/printer.py` — canonical pretty printer
 - `src/pwpolicy/evaluate.py` — starter rule set and password evaluation
 - `src/pwpolicy/errors.py` — `PolicyError`, with source-line rendering
+- `tests/` — unit tests, stdlib `unittest` only
+
+## Testing
+
+No test runner install required — the suite is plain `unittest` and
+`tests/__init__.py` puts `src/` on `sys.path` for you:
+
+```
+python -m unittest discover
+```
 
 ## Status
 
 The language, parser, printer, and a starter rule set for evaluation
-all work. See Roadmap for what's left.
+all work, and are covered by tests. See Roadmap for what's left.
 
 ## Roadmap
 
-- Test suite covering the lexer, parser error messages, and printer
-  round-tripping
 - Small CLI: `pwpolicy check policy.txt "candidate password"`
 - Support multiple named policies per file
