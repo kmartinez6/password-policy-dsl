@@ -77,6 +77,27 @@ if not result.ok:
         print(f"{violation.rule}: {violation.message}")
 ```
 
+## CLI
+
+```
+pwpolicy check policy.txt "candidate password"
+```
+
+Exits 0 if the password satisfies the policy, 1 if it violates one or
+more rules (each is printed), and 2 if the policy file couldn't be read,
+didn't parse, or names a rule the evaluator doesn't know:
+
+```
+$ pwpolicy check corporate.policy "hunter2"
+FAIL: password violates policy "corporate-default"
+  min_length: must be at least 12 characters long (got 7)
+  require: must contain at least one of each: upper, symbol
+```
+
+Installing the package (`pip install -e .`) puts `pwpolicy` on your
+`PATH`; without installing, `python -m pwpolicy check ...` works the
+same way.
+
 ## Errors with real locations
 
 Given a file missing the colon after a rule name:
@@ -110,6 +131,7 @@ marker, a CI annotation) instead of parsing the text back out.
 - `src/pwpolicy/printer.py` — canonical pretty printer
 - `src/pwpolicy/evaluate.py` — starter rule set and password evaluation
 - `src/pwpolicy/errors.py` — `PolicyError`, with source-line rendering
+- `src/pwpolicy/cli.py` — `pwpolicy check` command-line entry point
 - `tests/` — unit tests, stdlib `unittest` only
 
 ## Testing
@@ -123,10 +145,10 @@ python -m unittest discover
 
 ## Status
 
-The language, parser, printer, and a starter rule set for evaluation
-all work, and are covered by tests. See Roadmap for what's left.
+The language, parser, printer, a starter rule set for evaluation, and
+the `pwpolicy check` CLI all work, and are covered by tests. See
+Roadmap for what's left.
 
 ## Roadmap
 
-- Small CLI: `pwpolicy check policy.txt "candidate password"`
 - Support multiple named policies per file
