@@ -23,10 +23,11 @@ policy "corporate-default" {
 }
 ```
 
-A file holds exactly one `policy` block: a quoted name and a set of
-`name: value` rules. A value is a number, a bare identifier, a quoted
-string, or a `[...]` list of any of those. Rule names may not repeat
-within a policy. `#` starts a line comment.
+A file holds one or more `policy` blocks, each a quoted name and a set
+of `name: value` rules. A value is a number, a bare identifier, a
+quoted string, or a `[...]` list of any of those. Rule names may not
+repeat within a policy, and policy names may not repeat within a file.
+`#` starts a line comment.
 
 ## Rules
 
@@ -77,6 +78,23 @@ if not result.ok:
         print(f"{violation.rule}: {violation.message}")
 ```
 
+`parse` expects the source to hold exactly one policy block and raises
+`PolicyError` if it holds more. For a file with several named policies,
+use `parse_all`, which returns a list, and `format_policies` to re-emit
+all of them:
+
+```python
+policies = pwpolicy.parse_all(source)
+by_name = {p.name: p for p in policies}
+result = pwpolicy.evaluate(by_name["corporate-strict"], "hunter2")
+
+print(pwpolicy.format_policies(policies))
+```
+
+`parse_all` raises `PolicyError` if two policies in the file share a
+name, pointing at the first definition just like a duplicate rule name
+does.
+
 ## CLI
 
 ```
@@ -85,13 +103,26 @@ pwpolicy check policy.txt "candidate password"
 
 Exits 0 if the password satisfies the policy, 1 if it violates one or
 more rules (each is printed), and 2 if the policy file couldn't be read,
-didn't parse, or names a rule the evaluator doesn't know:
+didn't parse, names a rule the evaluator doesn't know, or names a
+policy the file doesn't define:
 
 ```
 $ pwpolicy check corporate.policy "hunter2"
 FAIL: password violates policy "corporate-default"
   min_length: must be at least 12 characters long (got 7)
   require: must contain at least one of each: upper, symbol
+```
+
+If the file defines more than one policy, pass `--policy NAME` to pick
+which one to check against; leaving it out is an error that lists the
+names available:
+
+```
+$ pwpolicy check corporate.policy "hunter2"
+pwpolicy: 'corporate.policy' defines multiple policies ('default', 'strict'); use --policy NAME to pick one
+$ pwpolicy check corporate.policy "hunter2" --policy strict
+FAIL: password violates policy "strict"
+  min_length: must be at least 16 characters long (got 7)
 ```
 
 Installing the package (`pip install -e .`) puts `pwpolicy` on your
@@ -146,9 +177,10 @@ python -m unittest discover
 ## Status
 
 The language, parser, printer, a starter rule set for evaluation, and
-the `pwpolicy check` CLI all work, and are covered by tests. See
-Roadmap for what's left.
+the `pwpolicy check` CLI all work, including files with more than one
+named policy, and are covered by tests. See Roadmap for what's left.
 
 ## Roadmap
 
-- Support multiple named policies per file
+- Add a `pwpolicy list` command to print the policy names in a file
+  without checking a password against any of them

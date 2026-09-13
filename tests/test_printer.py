@@ -1,6 +1,6 @@
 import unittest
 
-from pwpolicy import format_policy, parse
+from pwpolicy import format_policies, format_policy, parse, parse_all
 from pwpolicy.parser import Policy, Rule, Value
 
 
@@ -59,6 +59,31 @@ class FormatPolicyTests(unittest.TestCase):
         reparsed = parse(text)
 
         self.assertEqual(reparsed.rules[0].value.data[0].data, tricky)
+
+
+class FormatPoliciesTests(unittest.TestCase):
+    def test_separates_policies_with_a_blank_line(self):
+        policies = parse_all(
+            'policy "default" {\n  min_length: 8\n}\n'
+            'policy "strict" {\n  min_length: 16\n}\n'
+        )
+        self.assertEqual(
+            format_policies(policies),
+            'policy "default" {\n  min_length: 8\n}\n'
+            "\n"
+            'policy "strict" {\n  min_length: 16\n}\n',
+        )
+
+    def test_round_trips_through_parse_all(self):
+        source = (
+            'policy "default" {\n  min_length: 8\n}\n'
+            "\n"
+            'policy "strict" {\n  min_length: 16\n}\n'
+        )
+        once = format_policies(parse_all(source))
+        twice = format_policies(parse_all(once))
+        self.assertEqual(once, twice)
+        self.assertEqual(once, source)
 
 
 if __name__ == "__main__":

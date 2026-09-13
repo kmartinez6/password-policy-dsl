@@ -2,17 +2,24 @@
 
 Grammar (informal):
 
+    document := policy+
     policy   := "policy" STRING "{" rule* "}"
     rule     := IDENT ":" value
     value    := NUMBER | IDENT | STRING | list
     list     := "[" (value ("," value)*)? "]"
 
-Example:
+Example, a file with two named policies:
 
     policy "corporate-default" {
       min_length: 12
       require: [upper, lower, digit, symbol]
       forbid_repeat: 3
+    }
+
+    policy "corporate-strict" {
+      min_length: 16
+      require: [upper, lower, digit, symbol]
+      forbid_repeat: 2
     }
 
 Every token records its own line and column so that a parse failure can
@@ -190,7 +197,7 @@ class Parser:
             )
         return self._advance()
 
-    def parse_policy(self):
+    def _parse_policy_block(self):
         kw = self._expect("IDENT", "keyword 'policy'")
         if kw.value != "policy":
             raise PolicyError(
@@ -220,8 +227,39 @@ class Parser:
             rules.append(rule)
 
         self._expect("RBRACE", "'}' to close the policy body")
-        self._expect("EOF", "end of input after the closing '}' (only one policy per file)")
         return Policy(name_tok.value, rules, kw.line, kw.column)
+
+    def parse_policy(self):
+        """Parse source text holding exactly one policy block."""
+        policy = self._parse_policy_block()
+        self._expect(
+            "EOF",
+            "end of input after the closing '}' "
+            "(use parse_all() to parse a file with more than one policy)",
+        )
+        return policy
+
+    def parse_all(self):
+        """Parse source text holding one or more policy blocks."""
+        policies = []
+        seen = {}
+        while self._peek().kind != "EOF":
+            policy = self._parse_policy_block()
+            if policy.name in seen:
+                first = seen[policy.name]
+                raise PolicyError(
+                    f"policy {policy.name!r} is defined twice "
+                    f"(first defined on line {first.line})",
+                    self.source, policy.line, policy.column, len("policy"),
+                )
+            seen[policy.name] = policy
+            policies.append(policy)
+        if not policies:
+            raise PolicyError(
+                "expected at least one policy block, found end of file",
+                self.source, self._peek().line, self._peek().column,
+            )
+        return policies
 
     def _parse_rule(self):
         name_tok = self._expect("IDENT", "a rule name")
@@ -261,5 +299,18 @@ class Parser:
 
 
 def parse(source):
-    """Parse policy source text into a Policy AST, or raise PolicyError."""
+    """Parse source text holding exactly one policy block into a Policy AST.
+
+    Raises PolicyError, including if the source defines more than one
+    policy -- use parse_all() for that case.
+    """
     return Parser(source).parse_policy()
+
+
+def parse_all(source):
+    """Parse source text holding one or more policy blocks.
+
+    Returns a list of Policy ASTs in the order they appear. Raises
+    PolicyError if two policies in the file share a name.
+    """
+    return Parser(source).parse_all()

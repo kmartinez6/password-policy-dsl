@@ -1,6 +1,6 @@
 import unittest
 
-from pwpolicy import PolicyError, parse
+from pwpolicy import PolicyError, parse, parse_all
 
 
 class ParseStructureTests(unittest.TestCase):
@@ -90,10 +90,10 @@ class ParseErrorTests(unittest.TestCase):
         self.assertIn("first defined on line 2", err.message)
         self.assertEqual(err.line, 3)
 
-    def test_only_one_policy_per_file(self):
+    def test_parse_rejects_more_than_one_policy(self):
         with self.assertRaises(PolicyError) as ctx:
             parse('policy "a" {}\npolicy "b" {}\n')
-        self.assertIn("only one policy per file", ctx.exception.message)
+        self.assertIn("parse_all()", ctx.exception.message)
 
     def test_bad_value_token(self):
         with self.assertRaises(PolicyError) as ctx:
@@ -142,6 +142,35 @@ class ParseValueShapeTests(unittest.TestCase):
         # evaluate()'s job. Parsing an unknown rule name should succeed.
         policy = parse('policy "corp" {\n  totally_made_up: 5\n}\n')
         self.assertEqual(policy.rules[0].name, "totally_made_up")
+
+
+class ParseAllTests(unittest.TestCase):
+    def test_parses_multiple_policies_in_order(self):
+        policies = parse_all(
+            'policy "default" {\n  min_length: 8\n}\n'
+            'policy "strict" {\n  min_length: 16\n}\n'
+        )
+        self.assertEqual([p.name for p in policies], ["default", "strict"])
+        self.assertEqual(policies[0].rules[0].value.data, 8)
+        self.assertEqual(policies[1].rules[0].value.data, 16)
+
+    def test_single_policy_still_works(self):
+        policies = parse_all('policy "corp" {\n  min_length: 8\n}\n')
+        self.assertEqual(len(policies), 1)
+        self.assertEqual(policies[0].name, "corp")
+
+    def test_empty_source_is_rejected(self):
+        with self.assertRaises(PolicyError) as ctx:
+            parse_all("")
+        self.assertIn("expected at least one policy block", ctx.exception.message)
+
+    def test_duplicate_policy_name_points_at_first_definition(self):
+        with self.assertRaises(PolicyError) as ctx:
+            parse_all('policy "corp" {}\npolicy "corp" {}\n')
+        err = ctx.exception
+        self.assertIn("defined twice", err.message)
+        self.assertIn("first defined on line 1", err.message)
+        self.assertEqual(err.line, 2)
 
 
 if __name__ == "__main__":

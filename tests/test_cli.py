@@ -70,5 +70,52 @@ class CliTests(unittest.TestCase):
         self.assertIn("unknown rule", err)
 
 
+class CliMultiplePoliciesTests(unittest.TestCase):
+    def setUp(self):
+        fd, self.policy_path = tempfile.mkstemp(suffix=".policy")
+        with os.fdopen(fd, "w") as f:
+            f.write(
+                'policy "loose" {\n  min_length: 4\n}\n'
+                'policy "strict" {\n  min_length: 16\n}\n'
+            )
+        self.addCleanup(os.remove, self.policy_path)
+
+    def _run(self, *argv):
+        out, err = io.StringIO(), io.StringIO()
+        code = main(list(argv), out=out, err=err)
+        return code, out.getvalue(), err.getvalue()
+
+    def test_selects_named_policy(self):
+        code, out, err = self._run(
+            "check", self.policy_path, "hunter2", "--policy", "loose"
+        )
+        self.assertEqual(code, 0)
+        self.assertIn("loose", out)
+
+        code, out, err = self._run(
+            "check", self.policy_path, "hunter2", "--policy", "strict"
+        )
+        self.assertEqual(code, 1)
+        self.assertIn("min_length", out)
+
+    def test_missing_policy_name_exits_two(self):
+        code, out, err = self._run("check", self.policy_path, "hunter2")
+        self.assertEqual(code, 2)
+        self.assertEqual(out, "")
+        self.assertIn("defines multiple policies", err)
+        self.assertIn("loose", err)
+        self.assertIn("strict", err)
+
+    def test_unknown_policy_name_exits_two(self):
+        code, out, err = self._run(
+            "check", self.policy_path, "hunter2", "--policy", "nonexistent"
+        )
+        self.assertEqual(code, 2)
+        self.assertEqual(out, "")
+        self.assertIn("no policy named 'nonexistent'", err)
+        self.assertIn("loose", err)
+        self.assertIn("strict", err)
+
+
 if __name__ == "__main__":
     unittest.main()

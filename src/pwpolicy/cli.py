@@ -14,7 +14,32 @@ import sys
 
 from .errors import PolicyError
 from .evaluate import evaluate
-from .parser import parse
+from .parser import parse_all
+
+
+def _select_policy(policies, name, policy_file, err):
+    if name is not None:
+        for policy in policies:
+            if policy.name == name:
+                return policy, None
+        available = ", ".join(repr(p.name) for p in policies)
+        print(
+            f"pwpolicy: no policy named {name!r} in {policy_file!r} "
+            f"(available: {available})",
+            file=err,
+        )
+        return None, 2
+
+    if len(policies) == 1:
+        return policies[0], None
+
+    available = ", ".join(repr(p.name) for p in policies)
+    print(
+        f"pwpolicy: {policy_file!r} defines multiple policies ({available}); "
+        "use --policy NAME to pick one",
+        file=err,
+    )
+    return None, 2
 
 
 def _cmd_check(args, out, err):
@@ -26,10 +51,14 @@ def _cmd_check(args, out, err):
         return 2
 
     try:
-        policy = parse(source)
+        policies = parse_all(source)
     except PolicyError as exc:
         print(f"pwpolicy: {exc}", file=err)
         return 2
+
+    policy, error_code = _select_policy(policies, args.policy, args.policy_file, err)
+    if policy is None:
+        return error_code
 
     try:
         result = evaluate(policy, args.password)
@@ -56,6 +85,11 @@ def build_parser():
     )
     check.add_argument("policy_file", help="path to a policy source file")
     check.add_argument("password", help="candidate password to check")
+    check.add_argument(
+        "--policy", metavar="NAME", default=None,
+        help="name of the policy to check against, "
+             "required if the file defines more than one",
+    )
     check.set_defaults(func=_cmd_check)
 
     return parser

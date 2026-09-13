@@ -14,6 +14,11 @@ def format_policy(policy):
     return "\n".join(lines) + "\n"
 
 
+def format_policies(policies):
+    """Format multiple policies, separated by a blank line, as parse_all() expects."""
+    return "\n".join(format_policy(policy) for policy in policies)
+
+
 def _format_value(value):
     if value.kind == "number":
         return str(value.data)
