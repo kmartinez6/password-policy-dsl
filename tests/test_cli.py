@@ -69,6 +69,29 @@ class CliTests(unittest.TestCase):
         self.assertEqual(out, "")
         self.assertIn("unknown rule", err)
 
+    def test_list_prints_policy_name(self):
+        code, out, err = self._run("list", self.policy_path)
+        self.assertEqual(code, 0)
+        self.assertEqual(out, "corp\n")
+        self.assertEqual(err, "")
+
+    def test_list_missing_file_exits_two(self):
+        code, out, err = self._run("list", "/no/such/policy.txt")
+        self.assertEqual(code, 2)
+        self.assertEqual(out, "")
+        self.assertIn("can't read", err)
+
+    def test_list_malformed_policy_exits_two_with_location(self):
+        fd, path = tempfile.mkstemp(suffix=".policy")
+        with os.fdopen(fd, "w") as f:
+            f.write('policy "corp" {\n  min_length 12\n}\n')
+        self.addCleanup(os.remove, path)
+
+        code, out, err = self._run("list", path)
+        self.assertEqual(code, 2)
+        self.assertEqual(out, "")
+        self.assertIn("line 2, column", err)
+
 
 class CliMultiplePoliciesTests(unittest.TestCase):
     def setUp(self):
@@ -115,6 +138,12 @@ class CliMultiplePoliciesTests(unittest.TestCase):
         self.assertIn("no policy named 'nonexistent'", err)
         self.assertIn("loose", err)
         self.assertIn("strict", err)
+
+    def test_list_prints_all_policy_names(self):
+        code, out, err = self._run("list", self.policy_path)
+        self.assertEqual(code, 0)
+        self.assertEqual(out, "loose\nstrict\n")
+        self.assertEqual(err, "")
 
 
 if __name__ == "__main__":

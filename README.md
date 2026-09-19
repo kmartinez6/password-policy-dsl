@@ -125,6 +125,18 @@ FAIL: password violates policy "strict"
   min_length: must be at least 16 characters long (got 7)
 ```
 
+To see what policies a file defines without checking a password
+against any of them, use `list`, which prints one name per line:
+
+```
+$ pwpolicy list corporate.policy
+default
+strict
+```
+
+It exits 0 unless the file can't be read or doesn't parse, in which
+case it exits 2 with the same located error `check` would give.
+
 Installing the package (`pip install -e .`) puts `pwpolicy` on your
 `PATH`; without installing, `python -m pwpolicy check ...` works the
 same way.
@@ -177,10 +189,6 @@ python -m unittest discover
 ## Status
 
 The language, parser, printer, a starter rule set for evaluation, and
-the `pwpolicy check` CLI all work, including files with more than one
-named policy, and are covered by tests. See Roadmap for what's left.
-
-## Roadmap
-
-- Add a `pwpolicy list` command to print the policy names in a file
-  without checking a password against any of them
+the `pwpolicy check` and `pwpolicy list` CLI commands all work,
+including files with more than one named policy, and are covered by
+tests.
